@@ -1,0 +1,92 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import BlogCard from "../components/BlogCard.astro";
+import { getPublishedPosts } from "../lib/blog";
+
+const posts = (await getPublishedPosts()).slice(0, 3);
+---
+
+<BaseLayout title="Home" description="Articles, ideas, and technical notes.">
+  <section class="container hero">
+    <p class="eyebrow">THE BLOG</p>
+    <h1>Ideas worth exploring.</h1>
+    <p class="intro">Articles, experiments, and lessons learned along the way.</p>
+    <a class="browse-link" href="/article/">Browse all articles <span aria-hidden="true">→</span></a>
+  </section>
+  <section class="container latest">
+    <div class="section-heading">
+      <h2>Latest articles</h2>
+      <a href="/article/">View all</a>
+    </div>
+    {posts.length > 0 ? (
+      posts.map((post) => <BlogCard post={post} />)
+    ) : (
+      <p class="empty">No published articles yet. Check back soon.</p>
+    )}
+  </section>
+</BaseLayout>
+
+<style>
+  .hero {
+    padding-top: clamp(72px, 14vw, 140px);
+    padding-bottom: clamp(64px, 10vw, 100px);
+  }
+
+  .eyebrow {
+    color: var(--color-accent);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+  }
+
+  h1 {
+    max-width: 760px;
+    margin: 18px 0;
+    font-size: clamp(2.8rem, 9vw, 5.5rem);
+    line-height: 1.04;
+    letter-spacing: -0.065em;
+  }
+
+  .intro {
+    max-width: 560px;
+    color: var(--color-muted);
+    font-size: clamp(1.05rem, 3vw, 1.25rem);
+  }
+
+  .browse-link {
+    display: inline-flex;
+    gap: 10px;
+    align-items: center;
+    margin-top: 20px;
+    color: var(--color-accent);
+    font-weight: 650;
+  }
+
+  .latest {
+    max-width: 850px;
+    padding-bottom: 40px;
+  }
+
+  .section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .section-heading h2 {
+    font-size: 1.5rem;
+    letter-spacing: -0.035em;
+  }
+
+  .section-heading a {
+    color: var(--color-accent);
+    font-size: 0.9rem;
+  }
+
+  .empty {
+    padding: 24px 0;
+    color: var(--color-muted);
+  }
+</style>

@@ -1,0 +1,114 @@
+---
+import type { BlogPost } from "../lib/blog";
+import { getPostReadingTime, slugify } from "../lib/blog";
+
+interface Props {
+  post: BlogPost;
+}
+
+const { post } = Astro.props;
+const readingTime = getPostReadingTime(post);
+const formattedDate = new Intl.DateTimeFormat("en", {
+  year: "numeric",
+  month: "short",
+  day: "numeric"
+}).format(post.data.pubDate);
+const categories = post.data.categories.map(slugify);
+const tags = post.data.tags.map(slugify);
+---
+
+<article
+  class="blog-card"
+  data-title={post.data.title.toLowerCase()}
+  data-description={post.data.description.toLowerCase()}
+  data-categories={categories.join("|")}
+  data-tags={tags.join("|")}
+>
+  {post.data.categories.length > 0 && (
+    <div class="categories">
+      {post.data.categories.map((category) => (
+        <a href={`/article/category/${slugify(category)}/`}>{category}</a>
+      ))}
+    </div>
+  )}
+  <h2><a class="card-title" href={`/article/${post.id}/`}>{post.data.title}</a></h2>
+  <p class="description">{post.data.description}</p>
+  <div class="metadata">
+    <time datetime={post.data.pubDate.toISOString()}>{formattedDate}</time>
+    <span>{readingTime.label}</span>
+  </div>
+  {post.data.tags.length > 0 && (
+    <ul class="tags">
+      {post.data.tags.map((tag) => (
+        <li><a href={`/article/tag/${slugify(tag)}/`}>#{tag}</a></li>
+      ))}
+    </ul>
+  )}
+</article>
+
+<style>
+  .blog-card {
+    padding: 24px 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .blog-card[hidden] {
+    display: none;
+  }
+
+  .categories,
+  .metadata,
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+  }
+
+  .categories a {
+    color: var(--color-accent);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  h2 {
+    margin: 10px 0;
+    font-size: clamp(1.35rem, 4vw, 1.75rem);
+    line-height: 1.3;
+    letter-spacing: -0.035em;
+  }
+
+  .card-title {
+    color: var(--color-text);
+  }
+
+  .card-title:hover {
+    color: var(--color-accent);
+  }
+
+  .description {
+    margin: 0;
+    color: var(--color-muted);
+  }
+
+  .metadata {
+    margin-top: 14px;
+    color: var(--color-muted);
+    font-size: 0.82rem;
+  }
+
+  .tags {
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .tags a {
+    color: var(--color-muted);
+    font-size: 0.82rem;
+  }
+
+  .tags a:hover {
+    color: var(--color-text);
+  }
+</style>

@@ -1,0 +1,79 @@
+---
+interface Props {
+  currentPage: number;
+  totalPages: number;
+  baseUrl?: string;
+}
+
+const { currentPage, totalPages, baseUrl = "/article/" } = Astro.props;
+
+function getPageUrl(page: number): string {
+  return page === 1 ? baseUrl : `${baseUrl}page/${page}/`;
+}
+
+const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
+---
+
+{totalPages > 1 && (
+  <nav class="pagination" aria-label="Article pagination">
+    {currentPage > 1 && (
+      <a class="page-control" href={getPageUrl(currentPage - 1)} rel="prev">
+        Previous
+      </a>
+    )}
+    {pages.map((page) => (
+      <a
+        class={page === currentPage ? "page-number active" : "page-number"}
+        href={getPageUrl(page)}
+        aria-current={page === currentPage ? "page" : undefined}
+      >
+        {page}
+      </a>
+    ))}
+    {currentPage < totalPages && (
+      <a class="page-control" href={getPageUrl(currentPage + 1)} rel="next">
+        Next
+      </a>
+    )}
+  </nav>
+)}
+
+<style>
+  .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 36px;
+  }
+
+  .pagination a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    min-height: 40px;
+    padding: 8px 12px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--color-muted);
+    font-size: 0.85rem;
+  }
+
+  .pagination a:hover {
+    border-color: var(--color-border);
+    color: var(--color-text);
+  }
+
+  .pagination a.active {
+    border-color: var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+
+  .pagination a:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+  }
+</style>

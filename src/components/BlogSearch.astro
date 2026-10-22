@@ -1,0 +1,128 @@
+---
+import { slugify } from "../lib/blog";
+
+interface Props {
+  categories?: string[];
+  tags?: string[];
+}
+
+const { categories = [], tags = [] } = Astro.props;
+const safeCategories = Array.isArray(categories) ? categories : [];
+const safeTags = Array.isArray(tags) ? tags : [];
+---
+
+<div class="blog-search">
+  <label for="blog-query">Search articles</label>
+  <input id="blog-query" type="search" placeholder="Search titles, topics, and tags..." />
+
+  <div class="filters">
+    <div class="filter">
+      <label for="category-filter">Category</label>
+      <select id="category-filter">
+        <option value="">All categories</option>
+        {safeCategories.map((category) => (
+          <option value={slugify(category)}>{category}</option>
+        ))}
+      </select>
+    </div>
+    <div class="filter">
+      <label for="tag-filter">Tag</label>
+      <select id="tag-filter">
+        <option value="">All tags</option>
+        {safeTags.map((tag) => (
+          <option value={slugify(tag)}>{tag}</option>
+        ))}
+      </select>
+    </div>
+  </div>
+
+  <p id="search-status" aria-live="polite"></p>
+</div>
+
+<script>
+  const queryInput = document.querySelector<HTMLInputElement>("#blog-query");
+  const categoryFilter = document.querySelector<HTMLSelectElement>("#category-filter");
+  const tagFilter = document.querySelector<HTMLSelectElement>("#tag-filter");
+  const status = document.querySelector<HTMLParagraphElement>("#search-status");
+
+  function filterPosts() {
+    const query = queryInput?.value.trim().toLowerCase() ?? "";
+    const category = categoryFilter?.value ?? "";
+    const tag = tagFilter?.value ?? "";
+    const cards = document.querySelectorAll<HTMLElement>(".blog-card");
+    let visible = 0;
+
+    cards.forEach((card) => {
+      const title = card.dataset.title ?? "";
+      const description = card.dataset.description ?? "";
+      const categories = (card.dataset.categories ?? "").split("|").filter(Boolean);
+      const tags = (card.dataset.tags ?? "").split("|").filter(Boolean);
+      const searchableText = [title, description, ...categories, ...tags].join(" ");
+
+      const matchesQuery = !query || searchableText.includes(query);
+      const matchesCategory = !category || categories.includes(category);
+      const matchesTag = !tag || tags.includes(tag);
+      const show = matchesQuery && matchesCategory && matchesTag;
+
+      card.hidden = !show;
+      if (show) visible++;
+    });
+
+    if (status) {
+      status.textContent = `${visible} article${visible === 1 ? "" : "s"} found`;
+    }
+  }
+
+  queryInput?.addEventListener("input", filterPosts);
+  categoryFilter?.addEventListener("change", filterPosts);
+  tagFilter?.addEventListener("change", filterPosts);
+
+  filterPosts();
+</script>
+
+<style>
+  .blog-search {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  .blog-search label {
+    color: var(--color-muted);
+    font-size: 0.85rem;
+  }
+
+  .blog-search input,
+  .blog-search select {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 0.9rem;
+  }
+
+  .blog-search input::placeholder {
+    color: var(--color-muted);
+  }
+
+  .filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+  }
+
+  .filter {
+    display: grid;
+    gap: 6px;
+  }
+
+  #search-status {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 0.82rem;
+  }
+</style>

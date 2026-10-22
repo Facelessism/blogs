@@ -1,0 +1,32 @@
+{
+  "name": "blogs",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.11.2",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@12.11.2",
+  "type": "module",
+  "dependencies": {
+    "astro": "6.4.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "typescript": "^6.0.3"
+  }
+}

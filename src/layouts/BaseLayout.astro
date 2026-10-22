@@ -1,0 +1,112 @@
+---
+import "../styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+  canonicalURL?: URL;
+}
+
+const {
+  title = "Blog",
+  description = "Articles, ideas, and technical notes.",
+  canonicalURL
+} = Astro.props;
+
+const pageTitle = title === "Blog" ? title : `${title} | Blog`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#0b0d10" />
+    <title>{pageTitle}</title>
+    {canonicalURL && <link rel="canonical" href={canonicalURL} />}
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="site-logo" href="/" aria-label="Blog home">Blog</a>
+        <nav aria-label="Main navigation">
+          <a href="/article/">Articles</a>
+        </nav>
+      </div>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <span>© {new Date().getFullYear()} Blog</span>
+        <a href="/article/">Browse articles</a>
+      </div>
+    </footer>
+  </body>
+</html>
+
+<style>
+  .site-header {
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-background);
+  }
+
+  .header-inner,
+  .footer-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    min-height: 72px;
+  }
+
+  .site-logo {
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.045em;
+  }
+
+  .logo-period {
+    color: var(--color-accent);
+  }
+
+  nav {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    color: var(--color-muted);
+    font-size: 0.9rem;
+  }
+
+  nav a,
+  .site-footer a {
+    transition: color 140ms ease;
+  }
+
+  nav a:hover,
+  .site-footer a:hover {
+    color: var(--color-text);
+  }
+
+  .site-footer {
+    margin-top: 80px;
+    border-top: 1px solid var(--color-border);
+    color: var(--color-muted);
+    font-size: 0.85rem;
+  }
+
+  @media (max-width: 420px) {
+    .header-inner,
+    .footer-inner {
+      gap: 12px;
+    }
+
+    nav {
+      gap: 14px;
+    }
+  }
+</style>

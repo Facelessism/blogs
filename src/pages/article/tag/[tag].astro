@@ -1,0 +1,62 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import BlogCard from "../../../components/BlogCard.astro";
+import { getPublishedPosts, slugify } from "../../../lib/blog";
+
+export async function getStaticPaths() {
+  const posts = await getPublishedPosts();
+  const tags = [...new Set(posts.flatMap((post) => post.data.tags))];
+
+  return tags.map((tag) => ({
+    params: { tag: slugify(tag) },
+    props: { tag }
+  }));
+}
+
+const { tag } = Astro.props;
+const posts = await getPublishedPosts();
+const matchingPosts = posts.filter((post) =>
+  post.data.tags.some((item) => slugify(item) === slugify(tag))
+);
+---
+
+<BaseLayout title={`Tag: ${tag}`} description={`Published articles tagged ${tag}.`}>
+  <section class="container archive">
+    <a class="back-link" href="/article/">← All articles</a>
+    <p class="eyebrow">TAG</p>
+    <h1>#{tag}</h1>
+    <div class="post-list">
+      {matchingPosts.length > 0 ? (
+        matchingPosts.map((post) => <BlogCard post={post} />)
+      ) : (
+        <p>No published articles with this tag yet.</p>
+      )}
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .archive {
+    max-width: 850px;
+    padding-top: 64px;
+  }
+
+  .back-link {
+    color: var(--color-muted);
+    font-size: 0.9rem;
+  }
+
+  .eyebrow {
+    margin-top: 40px;
+    color: var(--color-accent);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+  }
+
+  h1 {
+    margin: 10px 0 28px;
+    font-size: clamp(2.5rem, 7vw, 4rem);
+    letter-spacing: -0.055em;
+  }
+</style>
