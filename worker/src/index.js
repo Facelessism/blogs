@@ -255,6 +255,14 @@ async function githubRequest(path, env, options = {}) {
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
+    console.error("GitHub API request failed", {
+      path,
+      status: response.status,
+      message: typeof data?.message === "string"
+        ? data.message
+        : "No error message returned"
+    });
+
     const error = new Error("GitHub repository operation failed.");
     error.status = response.status;
     throw error;
