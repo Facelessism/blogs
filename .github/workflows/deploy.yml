@@ -24,6 +24,8 @@ jobs:
 
       - name: Build Astro site
         uses: withastro/action@v6
+        env:
+          PUBLIC_ADMIN_API_URL: ${{ vars.PUBLIC_ADMIN_API_URL }}
         with:
           package-manager: pnpm@12.11.2
 
