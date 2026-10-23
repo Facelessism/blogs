@@ -45,7 +45,7 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
         <button class="admin-button admin-button-primary" type="submit">
           Authenticate
         </button>
-        <a class="admin-button" href="/">Back to blog</a>
+        <a class="admin-button" href={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}`}>Back to blog</a>
       </div>
     </form>
 

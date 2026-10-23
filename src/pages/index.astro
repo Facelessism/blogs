@@ -11,12 +11,12 @@ const posts = (await getPublishedPosts()).slice(0, 3);
     <p class="eyebrow">THE BLOG</p>
     <h1>Ideas worth exploring.</h1>
     <p class="intro">Articles, experiments, and lessons learned along the way.</p>
-    <a class="browse-link" href="/article/">Browse all articles <span aria-hidden="true">→</span></a>
+    <a class="browse-link" href={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}article/`}>Browse all articles <span aria-hidden="true">→</span></a>
   </section>
   <section class="container latest">
     <div class="section-heading">
       <h2>Latest articles</h2>
-      <a href="/article/">View all</a>
+      <a href={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}article/`}>View all</a>
     </div>
     {posts.length > 0 ? (
       posts.map((post) => <BlogCard post={post} />)

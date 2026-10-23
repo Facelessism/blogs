@@ -118,7 +118,7 @@ const editing = mode === "edit";
       Export Markdown
     </button>
 
-    <a class="admin-button" href="/admin/">Cancel</a>
+    <a class="admin-button" href={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}admin/`}>Cancel</a>
   </div>
 </form>
 

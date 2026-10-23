@@ -32,17 +32,17 @@ const pageTitle = title === "Blog" ? title : `${title} | Blog`;
     <meta name="twitter:description" content={description} />
     <title>{pageTitle}</title>
     {canonicalURL && <link rel="canonical" href={canonicalURL} />}
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}favicon.svg`} />
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
 
     <header class="site-header">
       <div class="container header-inner">
-        <a class="site-logo" href="/" aria-label="Blog home">BLOG</a>
+        <a class="site-logo" href={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}`} aria-label="Blog home">BLOG</a>
 
         <nav aria-label="Main navigation">
-          <a href="/article/">Articles</a>
+          <a href={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}article/`}>Articles</a>
         </nav>
       </div>
     </header>
@@ -56,8 +56,8 @@ const pageTitle = title === "Blog" ? title : `${title} | Blog`;
         <span>© {new Date().getFullYear()} Facelessism</span>
 
         <nav class="footer-nav" aria-label="Footer navigation">
-          <a href="/article/">Browse articles</a>
-          <a href="/admin/">Admin</a>
+          <a href={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}article/`}>Browse articles</a>
+          <a href={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}admin/`}>Admin</a>
         </nav>
       </div>
     </footer>

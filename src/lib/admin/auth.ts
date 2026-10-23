@@ -84,5 +84,5 @@ export async function verifyAdminSession(): Promise<boolean> {
 
 export function logoutAdmin(): void {
   sessionStorage.removeItem(SESSION_KEY);
-  window.location.replace("/admin/login/");
+  window.location.replace(`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}admin/login/`);
 }

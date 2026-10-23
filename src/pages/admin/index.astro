@@ -14,7 +14,7 @@ import AdminPostList from "../../components/admin/AdminPostList.astro";
         </p>
       </div>
 
-      <a class="admin-button admin-button-primary" href="/admin/new/">
+      <a class="admin-button admin-button-primary" href={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}admin/new/`}>
         + New article
       </a>
     </div>

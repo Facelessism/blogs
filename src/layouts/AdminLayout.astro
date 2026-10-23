@@ -22,15 +22,15 @@ const { title = "Dashboard" } = Astro.props;
   <body class="admin-app">
     <header class="admin-header">
       <div class="admin-header-inner">
-        <a class="admin-logo" href="/admin/">
+        <a class="admin-logo" href={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}admin/`}>
           Blog<span>.</span>
           <small>ADMIN</small>
         </a>
 
         <nav class="admin-nav" aria-label="Admin navigation">
-          <a href="/admin/">Dashboard</a>
-          <a href="/admin/new/">New article</a>
-          <a href="/" target="_blank" rel="noreferrer">View blog ↗</a>
+          <a href={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}admin/`}>Dashboard</a>
+          <a href={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}admin/new/`}>New article</a>
+          <a href={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}`} target="_blank" rel="noreferrer">View blog ↗</a>
         </nav>
       </div>
     </header>

@@ -31,7 +31,7 @@ const { category, posts } = Astro.props;
   description={`Published articles in the ${category} category.`}
 >
   <section class="container archive">
-    <a class="back-link" href="/article/">← All articles</a>
+    <a class="back-link" href={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}article/`}>← All articles</a>
     <p class="eyebrow">CATEGORY</p>
     <h1>{category}</h1>
 

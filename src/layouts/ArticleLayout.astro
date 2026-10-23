@@ -25,7 +25,7 @@ const updatedDate = post.data.updatedDate
 
 <BaseLayout title={post.data.title} description={post.data.description}>
   <article class="container article">
-    <a class="back-link" href="/article/">← All articles</a>
+    <a class="back-link" href={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}article/`}>← All articles</a>
 
     <header class="article-header">
       {post.data.categories.length > 0 && (
@@ -75,7 +75,7 @@ const updatedDate = post.data.updatedDate
     </div>
 
     <footer class="article-footer">
-      <a class="back-link" href="/article/">← Back to all articles</a>
+      <a class="back-link" href={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}article/`}>← Back to all articles</a>
     </footer>
   </article>
 </BaseLayout>
