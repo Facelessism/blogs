@@ -1,3 +1,4 @@
+
 <section class="admin-toolbar" aria-label="Filter articles">
   <input
     class="admin-field"
@@ -6,7 +7,6 @@
     aria-label="Search articles"
     data-post-search
   />
-
   <select class="admin-select" aria-label="Filter article status" data-post-filter>
     <option value="all">All articles</option>
     <option value="published">Published</option>
@@ -21,18 +21,95 @@
 </section>
 
 <script>
-  import { deletePost, listPosts } from "../../lib/admin/store";
+  import {
+    deleteRemotePost,
+    listRemotePosts,
+    type RemotePost,
+  } from "../../lib/admin/api";
+
+  interface ParsedPost extends RemotePost {
+    title: string;
+    description: string;
+    pubDate: string;
+    draft: boolean;
+  }
 
   const root = document.querySelector<HTMLElement>("[data-post-list]");
   const search = document.querySelector<HTMLInputElement>("[data-post-search]");
   const filter = document.querySelector<HTMLSelectElement>("[data-post-filter]");
 
-  if (root && search && filter) {
-    function render() {
-      const query = search.value.trim().toLowerCase();
-      const status = filter.value;
+  function readFrontmatter(content: string): Record<string, string> {
+    const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
 
-      const posts = listPosts().filter((post) => {
+    if (!match) {
+      throw new Error("A repository post has invalid Markdown frontmatter.");
+    }
+
+    const fields: Record<string, string> = {};
+
+    for (const line of match[1].split(/\r?\n/)) {
+      const field = line.match(/^([A-Za-z][A-Za-z0-9]*):\s*(.*)$/);
+
+      if (field) {
+        fields[field[1]] = field[2].trim();
+      }
+    }
+
+    return fields;
+  }
+
+  function readString(value: string | undefined, fallback = ""): string {
+    if (value === undefined) return fallback;
+
+    try {
+      const parsed: unknown = JSON.parse(value);
+      return typeof parsed === "string" ? parsed : fallback;
+    } catch {
+      return value.replace(/^["']|["']$/g, "");
+    }
+  }
+
+  function parsePost(post: RemotePost): ParsedPost {
+    const fields = readFrontmatter(post.content);
+
+    if (!fields.title || !fields.description || !fields.pubDate) {
+      throw new Error(`Post "${post.slug}" is missing required frontmatter.`);
+    }
+
+    return {
+      ...post,
+      title: readString(fields.title, post.slug),
+      description: readString(fields.description),
+      pubDate: readString(fields.pubDate).slice(0, 10),
+      draft: fields.draft === "true",
+    };
+  }
+
+  function showMessage(heading: string, message: string): void {
+    if (!root) return;
+
+    const empty = document.createElement("div");
+    empty.className = "admin-empty";
+
+    const title = document.createElement("h2");
+    title.textContent = heading;
+
+    const detail = document.createElement("p");
+    detail.textContent = message;
+
+    empty.append(title, detail);
+    root.replaceChildren(empty);
+  }
+
+  if (root && search && filter) {
+    let posts: ParsedPost[] = [];
+    let loading = true;
+
+    function render(): void {
+      const query = search!.value.trim().toLowerCase();
+      const status = filter!.value;
+
+      const filteredPosts = posts.filter((post) => {
         const matchesQuery =
           post.title.toLowerCase().includes(query) ||
           post.slug.toLowerCase().includes(query) ||
@@ -46,37 +123,36 @@
         return matchesQuery && matchesStatus;
       });
 
-      root.replaceChildren();
+      root!.replaceChildren();
 
-      if (posts.length === 0) {
-        const empty = document.createElement("div");
-        empty.className = "admin-empty";
+      if (loading) {
+        showMessage("Loading articles", "Fetching posts from GitHub...");
+        return;
+      }
 
-        const heading = document.createElement("h2");
-        heading.textContent = query || status !== "all"
+      if (filteredPosts.length === 0) {
+        const heading = query || status !== "all"
           ? "No matching articles"
           : "Your article list is empty";
 
-        const message = document.createElement("p");
-        message.textContent = query || status !== "all"
+        const message = query || status !== "all"
           ? "Try changing the search or status filter."
           : "Create your first article to start building your archive.";
 
-        empty.append(heading, message);
+        showMessage(heading, message);
 
         if (!query && status === "all") {
           const link = document.createElement("a");
           link.className = "admin-button admin-button-primary";
           link.href = "/admin/new/";
           link.textContent = "Create article";
-          empty.append(link);
+          root!.querySelector(".admin-empty")?.append(link);
         }
 
-        root.append(empty);
         return;
       }
 
-      for (const post of posts) {
+      for (const post of filteredPosts) {
         const row = document.createElement("article");
         row.className = "admin-post-row";
 
@@ -123,15 +199,19 @@
         remove.type = "button";
         remove.textContent = "Delete";
 
-        remove.addEventListener("click", () => {
+        remove.addEventListener("click", async () => {
           const confirmed = window.confirm(
-            `Delete "${post.title}" from this browser's admin prototype? This cannot be undone here.`,
+            `Delete "${post.title}" from the GitHub repository? This creates a repository change and cannot be undone from this admin interface.`,
           );
 
           if (!confirmed) return;
 
+          remove.disabled = true;
+          remove.textContent = "Deleting...";
+
           try {
-            deletePost(post.slug);
+            await deleteRemotePost(post.slug, post.sha);
+            posts = posts.filter((item) => item.slug !== post.slug);
             render();
           } catch (error) {
             window.alert(
@@ -139,19 +219,48 @@
                 ? error.message
                 : "Could not delete the article.",
             );
+            remove.disabled = false;
+            remove.textContent = "Delete";
           }
         });
 
         actions.append(edit, remove);
         row.append(main, actions);
-        root.append(row);
+        root!.append(row);
+      }
+    }
+
+    async function loadPosts(): Promise<void> {
+      loading = true;
+      render();
+
+      try {
+        const remotePosts = await listRemotePosts();
+        posts = remotePosts.map(parsePost);
+        loading = false;
+        render();
+      } catch (error) {
+        loading = false;
+
+        showMessage(
+          "Could not load articles",
+          error instanceof Error
+            ? error.message
+            : "The GitHub-backed post list could not be loaded.",
+        );
+
+        const retry = document.createElement("button");
+        retry.type = "button";
+        retry.className = "admin-button";
+        retry.textContent = "Retry";
+        retry.addEventListener("click", () => void loadPosts());
+        root!.querySelector(".admin-empty")?.append(retry);
       }
     }
 
     search.addEventListener("input", render);
     filter.addEventListener("change", render);
-    window.addEventListener("storage", render);
 
-    render();
+    void loadPosts();
   }
 </script>

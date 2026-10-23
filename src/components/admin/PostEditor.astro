@@ -1,3 +1,4 @@
+
 ---
 interface Props {
   mode: "create" | "edit";
@@ -11,19 +12,12 @@ const editing = mode === "edit";
   <p class="admin-eyebrow">{editing ? "EDIT ARTICLE" : "NEW ARTICLE"}</p>
   <h1>{editing ? "Edit article" : "Create an article"}</h1>
   <p class="admin-subtitle">
-    Write in Markdown. Metadata will be validated before saving.
+    Write in Markdown. Metadata will be validated before saving to GitHub.
   </p>
 </section>
 
-<div
-  class="admin-message"
-  role="status"
-  aria-live="polite"
-  data-editor-message
->
-  {editing
-    ? "Loading article..."
-    : "Your changes are saved to this browser only in this prototype."}
+<div class="admin-message" role="status" aria-live="polite" data-editor-message>
+  {editing ? "Loading article..." : "New articles will be saved to GitHub."}
 </div>
 
 <form class="admin-editor" data-admin-editor data-mode={mode} novalidate>
@@ -52,8 +46,8 @@ const editing = mode === "edit";
         placeholder="generated-from-title"
       />
       <p class="admin-help">
-        Used as the article URL. Changing it later changes the intended article
-        identity in this prototype.
+        Used as the article URL. The slug cannot be changed while editing an
+        existing article.
       </p>
     </div>
 
@@ -72,34 +66,18 @@ const editing = mode === "edit";
 
     <div class="admin-form-field">
       <label for="post-date">Publication date</label>
-      <input
-        class="admin-field"
-        id="post-date"
-        name="pubDate"
-        type="date"
-        required
-      />
+      <input class="admin-field" id="post-date" name="pubDate" type="date" required />
     </div>
 
     <div class="admin-form-field">
       <label for="post-categories">Categories</label>
-      <input
-        class="admin-field"
-        id="post-categories"
-        name="categories"
-        placeholder="Engineering, Notes"
-      />
+      <input class="admin-field" id="post-categories" name="categories" placeholder="Engineering, Notes" />
       <p class="admin-help">Separate multiple categories with commas.</p>
     </div>
 
     <div class="admin-form-field admin-field-full">
       <label for="post-tags">Tags</label>
-      <input
-        class="admin-field"
-        id="post-tags"
-        name="tags"
-        placeholder="typescript, architecture, tooling"
-      />
+      <input class="admin-field" id="post-tags" name="tags" placeholder="typescript, architecture, tooling" />
       <p class="admin-help">Separate multiple tags with commas.</p>
     </div>
 
@@ -124,8 +102,7 @@ const editing = mode === "edit";
     <div class="admin-checkbox-copy">
       <label for="post-draft">Keep as draft</label>
       <p>
-        Draft articles should not appear in the public blog once connected to
-        the publishing backend.
+        Draft articles are stored in GitHub but excluded from the public blog.
       </p>
     </div>
   </div>
@@ -150,9 +127,16 @@ const editing = mode === "edit";
     normalizeSlug,
     parseLabels,
     validatePostInput,
+    type AdminPost,
     type PostInput,
   } from "../../lib/admin/post-schema";
-  import { getPost, listPosts, savePost } from "../../lib/admin/store";
+  import {
+    createRemotePost,
+    deleteRemotePost,
+    listRemotePosts,
+    updateRemotePost,
+    type RemotePost,
+  } from "../../lib/admin/api";
   import { serializeMarkdown } from "../../lib/admin/markdown";
 
   const form = document.querySelector<HTMLFormElement>("[data-admin-editor]");
@@ -177,8 +161,9 @@ const editing = mode === "edit";
     const draft = field<HTMLInputElement>("draft");
 
     let previousSlug: string | undefined;
-    let slugTouched = false;
-    let lastSaved: ReturnType<typeof getPost>;
+    let originalPost: RemotePost | undefined;
+    let lastSaved: AdminPost | undefined;
+    let busy = false;
 
     function localDate(): string {
       const now = new Date();
@@ -186,7 +171,10 @@ const editing = mode === "edit";
       return new Date(now.getTime() - offset).toISOString().slice(0, 10);
     }
 
-    function showMessage(text: string, kind: "error" | "success" | "normal" = "normal") {
+    function showMessage(
+      text: string,
+      kind: "error" | "success" | "normal" = "normal",
+    ): void {
       if (!message) return;
 
       message.textContent = text;
@@ -196,7 +184,7 @@ const editing = mode === "edit";
       if (kind === "success") message.classList.add("admin-message-success");
     }
 
-    function showErrors(errors: string[]) {
+    function showErrors(errors: string[]): void {
       if (!errorsBox) return;
 
       errorsBox.replaceChildren();
@@ -232,63 +220,216 @@ const editing = mode === "edit";
       };
     }
 
-    pubDate.value = localDate();
+    function parseFrontmatter(content: string): {
+      fields: Record<string, string>;
+      body: string;
+    } {
+      const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
 
-    if (mode === "edit") {
-      const requestedSlug = new URLSearchParams(window.location.search).get("slug");
-      const existing = requestedSlug ? getPost(requestedSlug) : undefined;
+      if (!match) {
+        throw new Error("The repository post has invalid Markdown frontmatter.");
+      }
 
-      if (!existing) {
-        showMessage(
-          "Article not found in this browser's local storage. It may have been deleted or created in another browser.",
-          "error",
-        );
+      const fields: Record<string, string> = {};
 
-        form.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLButtonElement>(
-          "input, textarea, button",
-        ).forEach((element) => {
-          if (element !== exportButton) element.disabled = true;
-        });
+      for (const line of match[1].split(/\r?\n/)) {
+        const fieldMatch = line.match(/^([A-Za-z][A-Za-z0-9]*):\s*(.*)$/);
 
-        if (exportButton) exportButton.disabled = true;
-      } else {
-        previousSlug = existing.slug;
-        lastSaved = existing;
-        title.value = existing.title;
-        slug.value = existing.slug;
-        description.value = existing.description;
-        body.value = existing.body;
-        pubDate.value = existing.pubDate;
-        categories.value = existing.categories.join(", ");
-        tags.value = existing.tags.join(", ");
-        draft.checked = existing.draft;
-        showMessage("Article loaded from this browser's local storage.");
+        if (fieldMatch) {
+          fields[fieldMatch[1]] = fieldMatch[2].trim();
+        }
+      }
+
+      return {
+        fields,
+        body: content.slice(match[0].length).trimStart(),
+      };
+    }
+
+    function parseString(value: string | undefined, fallback = ""): string {
+      if (value === undefined) return fallback;
+
+      try {
+        const parsed: unknown = JSON.parse(value);
+        return typeof parsed === "string" ? parsed : fallback;
+      } catch {
+        return value.replace(/^["']|["']$/g, "");
       }
     }
 
-    slug.addEventListener("input", () => {
-      slugTouched = true;
-    });
+    function parseStringArray(value: string | undefined): string[] {
+      if (!value) return [];
+
+      try {
+        const parsed: unknown = JSON.parse(value);
+
+        if (Array.isArray(parsed)) {
+          return parsed.filter(
+            (item): item is string => typeof item === "string",
+          );
+        }
+      } catch {
+        // Older frontmatter may use a different array representation.
+      }
+
+      return [];
+    }
+
+    function parseRemotePost(post: RemotePost): AdminPost {
+      const { fields, body: markdownBody } = parseFrontmatter(post.content);
+
+      const parsedTitle = parseString(fields.title);
+      const parsedDescription = parseString(fields.description);
+      const parsedDate = parseString(fields.pubDate);
+
+      if (!parsedTitle || !parsedDescription || !/^\d{4}-\d{2}-\d{2}$/.test(parsedDate)) {
+        throw new Error(`Post "${post.slug}" has invalid required metadata.`);
+      }
+
+      const now = new Date().toISOString();
+      const updatedDate = parseString(fields.updatedDate);
+
+      return {
+        title: parsedTitle,
+        slug: post.slug,
+        description: parsedDescription,
+        body: markdownBody,
+        pubDate: parsedDate,
+        categories: parseStringArray(fields.categories),
+        tags: parseStringArray(fields.tags),
+        draft: fields.draft === "true",
+        createdAt: now,
+        updatedAt: now,
+        ...(updatedDate ? { updatedDate } : {}),
+      };
+    }
+
+    function setBusy(value: boolean): void {
+      busy = value;
+
+      if (saveButton) {
+        saveButton.disabled = value;
+        saveButton.textContent = value
+          ? "Saving..."
+          : mode === "edit"
+            ? "Save changes"
+            : "Save article";
+      }
+
+      if (exportButton) exportButton.disabled = value;
+    }
+
+    function disableEditor(): void {
+      form!.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLButtonElement>(
+        "input, textarea, button",
+      ).forEach((element) => {
+        element.disabled = true;
+      });
+
+      if (exportButton) exportButton.disabled = true;
+    }
+
+    function fillEditor(post: AdminPost): void {
+      title.value = post.title;
+      slug.value = post.slug;
+      slug.readOnly = true;
+      description.value = post.description;
+      body.value = post.body;
+      pubDate.value = post.pubDate;
+      categories.value = post.categories.join(", ");
+      tags.value = post.tags.join(", ");
+      draft.checked = post.draft;
+      lastSaved = post;
+    }
+
+    function buildMarkdown(input: PostInput): string {
+      const now = new Date().toISOString();
+
+      const record: AdminPost = {
+        ...input,
+        createdAt: lastSaved?.createdAt ?? now,
+        updatedAt: now,
+        ...(mode === "edit"
+          ? { updatedDate: localDate() }
+          : {}),
+      };
+
+      return serializeMarkdown(record);
+    }
+
+    async function loadEditor(): Promise<void> {
+      pubDate.value = localDate();
+
+      if (mode !== "edit") {
+        showMessage("New article will be saved to GitHub.");
+        return;
+      }
+
+      const requestedSlug = new URLSearchParams(window.location.search).get("slug");
+
+      if (!requestedSlug) {
+        showMessage("No article slug was provided.", "error");
+        disableEditor();
+        return;
+      }
+
+      setBusy(true);
+
+      try {
+        const posts = await listRemotePosts();
+        const existing = posts.find((post) => post.slug === requestedSlug);
+
+        if (!existing) {
+          showMessage(
+            "Article not found in the GitHub repository. It may have been deleted.",
+            "error",
+          );
+          disableEditor();
+          return;
+        }
+
+        originalPost = existing;
+        previousSlug = existing.slug;
+
+        const parsed = parseRemotePost(existing);
+        fillEditor(parsed);
+
+        showMessage("Article loaded from GitHub.");
+      } catch (error) {
+        showMessage(
+          error instanceof Error
+            ? error.message
+            : "Could not load the article from GitHub.",
+          "error",
+        );
+        disableEditor();
+      } finally {
+        setBusy(false);
+      }
+    }
 
     title.addEventListener("input", () => {
-      if (!slugTouched) slug.value = normalizeSlug(title.value);
+      if (mode === "create" && !slug.matches(":focus")) {
+        slug.value = normalizeSlug(title.value);
+      }
     });
 
-    form.addEventListener("submit", (event) => {
+    slug.addEventListener("input", () => {
+      if (mode === "edit" && previousSlug) {
+        slug.value = previousSlug;
+      }
+    });
+
+    form.addEventListener("submit", async (event) => {
       event.preventDefault();
+
+      if (busy) return;
 
       const input = currentInput();
       const errors = validatePostInput(input);
 
-      if (
-        !errors.length &&
-        listPosts().some(
-          (post) =>
-            post.slug === input.slug &&
-            post.slug !== previousSlug,
-        )
-      ) {
-        errors.push("That slug is already used by another article.");
+      if (mode === "edit" && previousSlug && input.slug !== previousSlug) {
+        errors.push("Changing an existing article's slug is not supported.");
       }
 
       showErrors(errors);
@@ -298,17 +439,48 @@ const editing = mode === "edit";
         return;
       }
 
+      setBusy(true);
+
       try {
-        const saved = savePost(input, previousSlug);
-        lastSaved = saved;
-        previousSlug = saved.slug;
-        showMessage("Saved in this browser's local storage.", "success");
+        const posts = await listRemotePosts();
+
+        if (
+          posts.some(
+            (post) =>
+              post.slug === input.slug &&
+              post.slug !== previousSlug,
+          )
+        ) {
+          throw new Error("That slug is already used by another article.");
+        }
+
+        const markdown = buildMarkdown(input);
+
+        if (mode === "edit") {
+          if (!previousSlug || !originalPost) {
+            throw new Error("The original GitHub post could not be identified.");
+          }
+
+          await updateRemotePost(
+            previousSlug,
+            markdown,
+            originalPost.sha,
+          );
+        } else {
+          await createRemotePost(input.slug, markdown);
+        }
+
+        showMessage("Saved to GitHub successfully.", "success");
         window.location.href = "/admin/?saved=1";
       } catch (error) {
         showMessage(
-          error instanceof Error ? error.message : "Could not save the article.",
+          error instanceof Error
+            ? error.message
+            : "Could not save the article to GitHub.",
           "error",
         );
+      } finally {
+        setBusy(false);
       }
     });
 
@@ -322,29 +494,34 @@ const editing = mode === "edit";
         return;
       }
 
-      const existing = lastSaved;
-      const exportRecord = {
-        ...input,
-        createdAt: existing?.createdAt ?? new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        ...(existing?.updatedDate ? { updatedDate: existing.updatedDate } : {}),
-      };
+      try {
+        const markdown = buildMarkdown(input);
+        const blob = new Blob(
+          [markdown],
+          { type: "text/markdown;charset=utf-8" },
+        );
 
-      const blob = new Blob(
-        [serializeMarkdown(exportRecord)],
-        { type: "text/markdown;charset=utf-8" },
-      );
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
 
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${input.slug || "article"}.md`;
-      document.body.append(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+        link.href = url;
+        link.download = `${input.slug || "article"}.md`;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
 
-      showMessage("Markdown file exported.", "success");
+        showMessage("Markdown file exported.", "success");
+      } catch (error) {
+        showMessage(
+          error instanceof Error
+            ? error.message
+            : "Could not export Markdown.",
+          "error",
+        );
+      }
     });
+
+    void loadEditor();
   }
 </script>

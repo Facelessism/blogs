@@ -1,4 +1,4 @@
-	mport type { AdminPost } from "./post-schema";
+import type { AdminPost } from "./post-schema";
 
 function quote(value: string): string {
   return JSON.stringify(value);
