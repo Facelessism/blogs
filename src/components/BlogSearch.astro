@@ -7,77 +7,125 @@ interface Props {
 }
 
 const { categories = [], tags = [] } = Astro.props;
-const safeCategories = Array.isArray(categories) ? categories : [];
-const safeTags = Array.isArray(tags) ? tags : [];
 ---
 
-<div class="blog-search">
-  <label for="blog-query">Search articles</label>
-  <input id="blog-query" type="search" placeholder="Search titles, topics, and tags..." />
+<div class="blog-search" data-blog-search>
+  <label for="blog-query">Search articles on this page</label>
+  <input
+    id="blog-query"
+    type="search"
+    placeholder="Search titles, topics, and tags..."
+    autocomplete="off"
+  />
 
   <div class="filters">
     <div class="filter">
       <label for="category-filter">Category</label>
       <select id="category-filter">
         <option value="">All categories</option>
-        {safeCategories.map((category) => (
+        {categories.map((category) => (
           <option value={slugify(category)}>{category}</option>
         ))}
       </select>
     </div>
+
     <div class="filter">
       <label for="tag-filter">Tag</label>
       <select id="tag-filter">
         <option value="">All tags</option>
-        {safeTags.map((tag) => (
+        {tags.map((tag) => (
           <option value={slugify(tag)}>{tag}</option>
         ))}
       </select>
     </div>
   </div>
 
-  <p id="search-status" aria-live="polite"></p>
+  <p data-search-status aria-live="polite"></p>
 </div>
 
 <script>
-  const queryInput = document.querySelector<HTMLInputElement>("#blog-query");
-  const categoryFilter = document.querySelector<HTMLSelectElement>("#category-filter");
-  const tagFilter = document.querySelector<HTMLSelectElement>("#tag-filter");
-  const status = document.querySelector<HTMLParagraphElement>("#search-status");
+  const searchRoot = document.querySelector<HTMLElement>("[data-blog-search]");
 
-  function filterPosts() {
-    const query = queryInput?.value.trim().toLowerCase() ?? "";
-    const category = categoryFilter?.value ?? "";
-    const tag = tagFilter?.value ?? "";
-    const cards = document.querySelectorAll<HTMLElement>(".blog-card");
-    let visible = 0;
+  if (searchRoot) {
+    const queryInput =
+      searchRoot.querySelector<HTMLInputElement>("#blog-query");
+    const categoryFilter =
+      searchRoot.querySelector<HTMLSelectElement>("#category-filter");
+    const tagFilter =
+      searchRoot.querySelector<HTMLSelectElement>("#tag-filter");
+    const status =
+      searchRoot.querySelector<HTMLElement>("[data-search-status]");
 
-    cards.forEach((card) => {
-      const title = card.dataset.title ?? "";
-      const description = card.dataset.description ?? "";
-      const categories = (card.dataset.categories ?? "").split("|").filter(Boolean);
-      const tags = (card.dataset.tags ?? "").split("|").filter(Boolean);
-      const searchableText = [title, description, ...categories, ...tags].join(" ");
+    const results = document.querySelector<HTMLElement>("[data-blog-results]");
+    const pagination =
+      document.querySelector<HTMLElement>("[data-blog-pagination]");
+    const noResults =
+      results?.querySelector<HTMLElement>("[data-no-results]");
 
-      const matchesQuery = !query || searchableText.includes(query);
-      const matchesCategory = !category || categories.includes(category);
-      const matchesTag = !tag || tags.includes(tag);
-      const show = matchesQuery && matchesCategory && matchesTag;
+    function filterPosts() {
+      const query = queryInput?.value.trim().toLowerCase() ?? "";
+      const category = categoryFilter?.value ?? "";
+      const tag = tagFilter?.value ?? "";
+      const filtering = Boolean(query || category || tag);
+      const cards =
+        results?.querySelectorAll<HTMLElement>(".blog-card") ?? [];
+      let visible = 0;
 
-      card.hidden = !show;
-      if (show) visible++;
-    });
+      cards.forEach((card) => {
+        const title = card.dataset.title ?? "";
+        const description = card.dataset.description ?? "";
+        const categories = (card.dataset.categories ?? "")
+          .split("|")
+          .filter(Boolean);
+        const tags = (card.dataset.tags ?? "")
+          .split("|")
+          .filter(Boolean);
 
-    if (status) {
-      status.textContent = `${visible} article${visible === 1 ? "" : "s"} found`;
+        const searchableText = [
+          title,
+          description,
+          ...categories,
+          ...tags,
+        ]
+          .join(" ")
+          .replaceAll("-", " ");
+
+        const matchesQuery = !query || searchableText.includes(query);
+        const matchesCategory = !category || categories.includes(category);
+        const matchesTag = !tag || tags.includes(tag);
+        const show =
+          matchesQuery && matchesCategory && matchesTag;
+
+        card.hidden = !show;
+
+        if (show) visible++;
+      });
+
+      if (noResults) {
+        noResults.hidden = !filtering || visible > 0;
+      }
+
+      if (pagination) {
+        pagination.hidden = filtering;
+      }
+
+      if (status) {
+        if (filtering) {
+          status.textContent =
+            `${visible} matching article${visible === 1 ? "" : "s"} on this page. Clear filters to restore pagination.`;
+        } else {
+          status.textContent =
+            `${cards.length} article${cards.length === 1 ? "" : "s"} on this page.`;
+        }
+      }
     }
+
+    queryInput?.addEventListener("input", filterPosts);
+    categoryFilter?.addEventListener("change", filterPosts);
+    tagFilter?.addEventListener("change", filterPosts);
+
+    filterPosts();
   }
-
-  queryInput?.addEventListener("input", filterPosts);
-  categoryFilter?.addEventListener("change", filterPosts);
-  tagFilter?.addEventListener("change", filterPosts);
-
-  filterPosts();
 </script>
 
 <style>
@@ -120,7 +168,7 @@ const safeTags = Array.isArray(tags) ? tags : [];
     gap: 6px;
   }
 
-  #search-status {
+  [data-search-status] {
     margin: 0;
     color: var(--color-muted);
     font-size: 0.82rem;

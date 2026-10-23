@@ -1,0 +1,8 @@
+name = "blogs-admin-api"
+main = "src/index.js"
+compatibility_date = "2026-10-23"
+
+[vars]
+ADMIN_GITHUB_USERNAME = "Facelessism"
+ALLOWED_ORIGIN = "https://facelessism.github.io"
+SESSION_TTL_SECONDS = "1800"

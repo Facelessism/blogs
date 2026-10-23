@@ -1,0 +1,133 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+---
+
+<AdminLayout title="Admin login">
+  <section class="admin-container admin-login-page">
+    <div class="admin-editor-heading">
+      <p class="admin-eyebrow">RESTRICTED ACCESS</p>
+      <h1>Admin login</h1>
+      <p>Authenticate with the GitHub account authorized to manage this blog.</p>
+    </div>
+
+    <form id="admin-login-form" class="admin-editor admin-login-form">
+      <label class="admin-form-field">
+        <span>GitHub username</span>
+        <input
+          type="text"
+          value="Facelessism"
+          autocomplete="username"
+          readonly
+        />
+      </label>
+
+      <label class="admin-form-field">
+        <span>Personal access token</span>
+        <input
+          id="admin-pat"
+          name="pat"
+          type="password"
+          placeholder="ghp_… or github_pat_…"
+          autocomplete="off"
+          autocapitalize="none"
+          spellcheck="false"
+          required
+        />
+        <span class="admin-help">
+          Used to verify your GitHub identity. The token is not saved in browser
+          storage.
+        </span>
+      </label>
+
+      <p id="admin-login-error" class="admin-message admin-message-error" hidden></p>
+
+      <div class="admin-form-actions">
+        <button class="admin-button admin-button-primary" type="submit">
+          Authenticate
+        </button>
+        <a class="admin-button" href="/">Back to blog</a>
+      </div>
+    </form>
+
+    <p class="admin-help admin-login-note">
+      The session is temporary and expires after 30 minutes. Closing this tab
+      clears the browser-held session.
+    </p>
+  </section>
+</AdminLayout>
+
+<script>
+  import { loginWithPat } from "../../lib/admin/auth";
+
+  const form = document.querySelector<HTMLFormElement>("#admin-login-form");
+  const patInput = document.querySelector<HTMLInputElement>("#admin-pat");
+  const errorMessage = document.querySelector<HTMLElement>("#admin-login-error");
+  const submitButton = form?.querySelector<HTMLButtonElement>(
+    'button[type="submit"]'
+  );
+
+  form?.addEventListener("submit", async event => {
+    event.preventDefault();
+
+    if (!patInput || !errorMessage || !submitButton) return;
+
+    const pat = patInput.value.trim();
+    if (!pat) return;
+
+    errorMessage.hidden = true;
+    errorMessage.textContent = "";
+    submitButton.disabled = true;
+    submitButton.textContent = "Authenticating…";
+
+    try {
+      await loginWithPat(pat);
+      patInput.value = "";
+
+      const requestedNext = new URLSearchParams(window.location.search).get("next");
+      const next =
+        requestedNext?.startsWith("/admin/") &&
+        !requestedNext.startsWith("/admin/login")
+          ? requestedNext
+          : "/admin/";
+
+      window.location.replace(next);
+    } catch (error) {
+      errorMessage.textContent =
+        error instanceof Error ? error.message : "Authentication failed.";
+      errorMessage.hidden = false;
+      patInput.value = "";
+      patInput.focus();
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = "Authenticate";
+    }
+  });
+</script>
+
+<style>
+  .admin-login-page {
+    max-width: 680px;
+    padding-top: 64px;
+    padding-bottom: 80px;
+  }
+
+  .admin-login-form {
+    display: grid;
+    gap: 24px;
+  }
+
+  .admin-login-note {
+    margin-top: 20px;
+    line-height: 1.7;
+  }
+
+  .admin-login-form input[readonly] {
+    opacity: 0.7;
+    cursor: default;
+  }
+
+  .admin-login-form button:disabled {
+    opacity: 0.65;
+    cursor: wait;
+  }
+</style>

@@ -8,12 +8,12 @@ const blog = defineCollection({
     base: "./src/content/blog",
   }),
   schema: z.object({
-    title: z.string().min(1),
-    description: z.string().min(1),
+    title: z.string().trim().min(1),
+    description: z.string().trim().min(1),
     pubDate: z.coerce.date(),
     updatedDate: z.coerce.date().optional(),
-    categories: z.array(z.string()).default([]),
-    tags: z.array(z.string()).default([]),
+    categories: z.array(z.string().trim().min(1)).default([]),
+    tags: z.array(z.string().trim().min(1)).default([]),
     draft: z.boolean().default(false),
   }),
 });

@@ -1,0 +1,350 @@
+---
+interface Props {
+  mode: "create" | "edit";
+}
+
+const { mode } = Astro.props;
+const editing = mode === "edit";
+---
+
+<section class="admin-editor-heading">
+  <p class="admin-eyebrow">{editing ? "EDIT ARTICLE" : "NEW ARTICLE"}</p>
+  <h1>{editing ? "Edit article" : "Create an article"}</h1>
+  <p class="admin-subtitle">
+    Write in Markdown. Metadata will be validated before saving.
+  </p>
+</section>
+
+<div
+  class="admin-message"
+  role="status"
+  aria-live="polite"
+  data-editor-message
+>
+  {editing
+    ? "Loading article..."
+    : "Your changes are saved to this browser only in this prototype."}
+</div>
+
+<form class="admin-editor" data-admin-editor data-mode={mode} novalidate>
+  <div class="admin-form-grid">
+    <div class="admin-form-field admin-field-full">
+      <label for="post-title">Title</label>
+      <input
+        class="admin-field"
+        id="post-title"
+        name="title"
+        maxlength="180"
+        required
+        placeholder="A clear, descriptive title"
+      />
+    </div>
+
+    <div class="admin-form-field admin-field-full">
+      <label for="post-slug">Slug</label>
+      <input
+        class="admin-field"
+        id="post-slug"
+        name="slug"
+        maxlength="180"
+        required
+        pattern="[a-z0-9]+(-[a-z0-9]+)*"
+        placeholder="generated-from-title"
+      />
+      <p class="admin-help">
+        Used as the article URL. Changing it later changes the intended article
+        identity in this prototype.
+      </p>
+    </div>
+
+    <div class="admin-form-field admin-field-full">
+      <label for="post-description">Description</label>
+      <textarea
+        class="admin-textarea"
+        id="post-description"
+        name="description"
+        rows="3"
+        maxlength="300"
+        required
+        placeholder="Summarize the article in a few sentences."
+      ></textarea>
+    </div>
+
+    <div class="admin-form-field">
+      <label for="post-date">Publication date</label>
+      <input
+        class="admin-field"
+        id="post-date"
+        name="pubDate"
+        type="date"
+        required
+      />
+    </div>
+
+    <div class="admin-form-field">
+      <label for="post-categories">Categories</label>
+      <input
+        class="admin-field"
+        id="post-categories"
+        name="categories"
+        placeholder="Engineering, Notes"
+      />
+      <p class="admin-help">Separate multiple categories with commas.</p>
+    </div>
+
+    <div class="admin-form-field admin-field-full">
+      <label for="post-tags">Tags</label>
+      <input
+        class="admin-field"
+        id="post-tags"
+        name="tags"
+        placeholder="typescript, architecture, tooling"
+      />
+      <p class="admin-help">Separate multiple tags with commas.</p>
+    </div>
+
+    <div class="admin-form-field admin-field-full">
+      <label for="post-body">Article content (Markdown)</label>
+      <textarea
+        class="admin-textarea admin-markdown-field"
+        id="post-body"
+        name="body"
+        required
+        spellcheck="false"
+        placeholder="# Introduction&#10;&#10;Write your article here..."
+      ></textarea>
+      <p class="admin-help">
+        Use Markdown headings, lists, links, blockquotes, and fenced code blocks.
+      </p>
+    </div>
+  </div>
+
+  <div class="admin-checkbox-row">
+    <input id="post-draft" name="draft" type="checkbox" checked />
+    <div class="admin-checkbox-copy">
+      <label for="post-draft">Keep as draft</label>
+      <p>
+        Draft articles should not appear in the public blog once connected to
+        the publishing backend.
+      </p>
+    </div>
+  </div>
+
+  <div class="admin-message admin-message-error" hidden data-editor-errors></div>
+
+  <div class="admin-form-actions">
+    <button class="admin-button admin-button-primary" type="submit" data-save-button>
+      {editing ? "Save changes" : "Save article"}
+    </button>
+
+    <button class="admin-button" type="button" data-export-button>
+      Export Markdown
+    </button>
+
+    <a class="admin-button" href="/admin/">Cancel</a>
+  </div>
+</form>
+
+<script>
+  import {
+    normalizeSlug,
+    parseLabels,
+    validatePostInput,
+    type PostInput,
+  } from "../../lib/admin/post-schema";
+  import { getPost, listPosts, savePost } from "../../lib/admin/store";
+  import { serializeMarkdown } from "../../lib/admin/markdown";
+
+  const form = document.querySelector<HTMLFormElement>("[data-admin-editor]");
+
+  if (form) {
+    const mode = form.dataset.mode === "edit" ? "edit" : "create";
+    const message = document.querySelector<HTMLElement>("[data-editor-message]");
+    const errorsBox = document.querySelector<HTMLElement>("[data-editor-errors]");
+    const saveButton = form.querySelector<HTMLButtonElement>("[data-save-button]");
+    const exportButton = form.querySelector<HTMLButtonElement>("[data-export-button]");
+
+    const field = <T extends HTMLElement>(name: string) =>
+      form.elements.namedItem(name) as T;
+
+    const title = field<HTMLInputElement>("title");
+    const slug = field<HTMLInputElement>("slug");
+    const description = field<HTMLTextAreaElement>("description");
+    const pubDate = field<HTMLInputElement>("pubDate");
+    const categories = field<HTMLInputElement>("categories");
+    const tags = field<HTMLInputElement>("tags");
+    const body = field<HTMLTextAreaElement>("body");
+    const draft = field<HTMLInputElement>("draft");
+
+    let previousSlug: string | undefined;
+    let slugTouched = false;
+    let lastSaved: ReturnType<typeof getPost>;
+
+    function localDate(): string {
+      const now = new Date();
+      const offset = now.getTimezoneOffset() * 60_000;
+      return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+    }
+
+    function showMessage(text: string, kind: "error" | "success" | "normal" = "normal") {
+      if (!message) return;
+
+      message.textContent = text;
+      message.className = "admin-message";
+
+      if (kind === "error") message.classList.add("admin-message-error");
+      if (kind === "success") message.classList.add("admin-message-success");
+    }
+
+    function showErrors(errors: string[]) {
+      if (!errorsBox) return;
+
+      errorsBox.replaceChildren();
+      errorsBox.hidden = errors.length === 0;
+
+      if (errors.length === 0) return;
+
+      const heading = document.createElement("strong");
+      heading.textContent = "Please fix the following:";
+
+      const list = document.createElement("ul");
+      list.className = "admin-error-list";
+
+      for (const error of errors) {
+        const item = document.createElement("li");
+        item.textContent = error;
+        list.append(item);
+      }
+
+      errorsBox.append(heading, list);
+    }
+
+    function currentInput(): PostInput {
+      return {
+        title: title.value.trim(),
+        slug: normalizeSlug(slug.value),
+        description: description.value.trim(),
+        body: body.value,
+        pubDate: pubDate.value,
+        categories: parseLabels(categories.value),
+        tags: parseLabels(tags.value),
+        draft: draft.checked,
+      };
+    }
+
+    pubDate.value = localDate();
+
+    if (mode === "edit") {
+      const requestedSlug = new URLSearchParams(window.location.search).get("slug");
+      const existing = requestedSlug ? getPost(requestedSlug) : undefined;
+
+      if (!existing) {
+        showMessage(
+          "Article not found in this browser's local storage. It may have been deleted or created in another browser.",
+          "error",
+        );
+
+        form.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLButtonElement>(
+          "input, textarea, button",
+        ).forEach((element) => {
+          if (element !== exportButton) element.disabled = true;
+        });
+
+        if (exportButton) exportButton.disabled = true;
+      } else {
+        previousSlug = existing.slug;
+        lastSaved = existing;
+        title.value = existing.title;
+        slug.value = existing.slug;
+        description.value = existing.description;
+        body.value = existing.body;
+        pubDate.value = existing.pubDate;
+        categories.value = existing.categories.join(", ");
+        tags.value = existing.tags.join(", ");
+        draft.checked = existing.draft;
+        showMessage("Article loaded from this browser's local storage.");
+      }
+    }
+
+    slug.addEventListener("input", () => {
+      slugTouched = true;
+    });
+
+    title.addEventListener("input", () => {
+      if (!slugTouched) slug.value = normalizeSlug(title.value);
+    });
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      const input = currentInput();
+      const errors = validatePostInput(input);
+
+      if (
+        !errors.length &&
+        listPosts().some(
+          (post) =>
+            post.slug === input.slug &&
+            post.slug !== previousSlug,
+        )
+      ) {
+        errors.push("That slug is already used by another article.");
+      }
+
+      showErrors(errors);
+
+      if (errors.length) {
+        showMessage("Article was not saved. Fix the validation errors.", "error");
+        return;
+      }
+
+      try {
+        const saved = savePost(input, previousSlug);
+        lastSaved = saved;
+        previousSlug = saved.slug;
+        showMessage("Saved in this browser's local storage.", "success");
+        window.location.href = "/admin/?saved=1";
+      } catch (error) {
+        showMessage(
+          error instanceof Error ? error.message : "Could not save the article.",
+          "error",
+        );
+      }
+    });
+
+    exportButton?.addEventListener("click", () => {
+      const input = currentInput();
+      const errors = validatePostInput(input);
+      showErrors(errors);
+
+      if (errors.length) {
+        showMessage("Fix validation errors before exporting.", "error");
+        return;
+      }
+
+      const existing = lastSaved;
+      const exportRecord = {
+        ...input,
+        createdAt: existing?.createdAt ?? new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        ...(existing?.updatedDate ? { updatedDate: existing.updatedDate } : {}),
+      };
+
+      const blob = new Blob(
+        [serializeMarkdown(exportRecord)],
+        { type: "text/markdown;charset=utf-8" },
+      );
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${input.slug || "article"}.md`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+
+      showMessage("Markdown file exported.", "success");
+    });
+  }
+</script>

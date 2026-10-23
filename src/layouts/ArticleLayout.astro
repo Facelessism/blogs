@@ -1,3 +1,4 @@
+
 ---
 import BaseLayout from "./BaseLayout.astro";
 import { getPostReadingTime, slugify } from "../lib/blog";
@@ -9,66 +10,95 @@ interface Props {
 
 const { post } = Astro.props;
 const readingTime = getPostReadingTime(post);
+
 const dateFormatter = new Intl.DateTimeFormat("en", {
   year: "numeric",
   month: "long",
-  day: "numeric"
+  day: "numeric",
 });
+
 const formattedDate = dateFormatter.format(post.data.pubDate);
 const updatedDate = post.data.updatedDate
   ? dateFormatter.format(post.data.updatedDate)
   : undefined;
 ---
 
-<BaseLayout
-  title={post.data.title}
-  description={post.data.description}
->
+<BaseLayout title={post.data.title} description={post.data.description}>
   <article class="container article">
     <a class="back-link" href="/article/">← All articles</a>
+
     <header class="article-header">
-      <div class="categories">
-        {post.data.categories.map((category) => (
-          <a href={`/article/category/${slugify(category)}/`}>{category}</a>
-        ))}
-      </div>
+      {post.data.categories.length > 0 && (
+        <nav class="categories" aria-label="Article categories">
+          {post.data.categories.map((category) => (
+            <a href={`/article/category/${slugify(category)}/`}>
+              {category}
+            </a>
+          ))}
+        </nav>
+      )}
+
       <h1>{post.data.title}</h1>
       <p class="description">{post.data.description}</p>
+
       <div class="metadata">
-        <time datetime={post.data.pubDate.toISOString()}>{formattedDate}</time>
-        {updatedDate && <span>Updated {updatedDate}</span>}
+        <time datetime={post.data.pubDate.toISOString()}>
+          {formattedDate}
+        </time>
+
+        {updatedDate && post.data.updatedDate && (
+          <span>
+            Updated{" "}
+            <time datetime={post.data.updatedDate.toISOString()}>
+              {updatedDate}
+            </time>
+          </span>
+        )}
+
         <span>{readingTime.words.toLocaleString()} words</span>
         <span>{readingTime.label}</span>
       </div>
+
       {post.data.tags.length > 0 && (
         <ul class="tags" aria-label="Article tags">
           {post.data.tags.map((tag) => (
-            <li><a href={`/article/tag/${slugify(tag)}/`}>#{tag}</a></li>
+            <li>
+              <a href={`/article/tag/${slugify(tag)}/`}>#{tag}</a>
+            </li>
           ))}
         </ul>
       )}
     </header>
+
     <div class="prose article-content">
       <slot />
     </div>
+
+    <footer class="article-footer">
+      <a class="back-link" href="/article/">← Back to all articles</a>
+    </footer>
   </article>
 </BaseLayout>
 
 <style>
   .article {
     max-width: 800px;
-    padding-top: 48px;
+    padding-top: clamp(32px, 6vw, 56px);
   }
 
   .back-link {
     display: inline-block;
-    margin-bottom: 32px;
     color: var(--color-muted);
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+    text-decoration: none;
+  }
+
+  .back-link:hover {
+    color: var(--color-text);
   }
 
   .article-header {
-    padding-bottom: 32px;
+    padding: 28px 0 32px;
     border-bottom: 1px solid var(--color-border);
   }
 
@@ -78,46 +108,62 @@ const updatedDate = post.data.updatedDate
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 10px 16px;
+    gap: 8px 14px;
   }
 
   .categories a {
     color: var(--color-accent);
-    font-size: 0.85rem;
+    font-size: 0.84rem;
     font-weight: 650;
   }
 
   h1 {
-    margin: 16px 0;
+    margin: 18px 0 14px;
     font-size: clamp(2.2rem, 7vw, 3.8rem);
     line-height: 1.12;
     letter-spacing: -0.055em;
+    overflow-wrap: anywhere;
   }
 
   .description {
     margin: 0;
     color: var(--color-muted);
-    font-size: 1.15rem;
+    font-size: clamp(1.05rem, 2.5vw, 1.2rem);
+    line-height: 1.65;
   }
 
   .metadata {
     margin-top: 22px;
     color: var(--color-muted);
-    font-size: 0.88rem;
+    font-size: 0.84rem;
+  }
+
+  .metadata time {
+    font-variant-numeric: tabular-nums;
   }
 
   .tags {
-    margin: 20px 0 0;
+    margin: 18px 0 0;
     padding: 0;
     list-style: none;
   }
 
   .tags a {
     color: var(--color-muted);
-    font-size: 0.88rem;
+    font-size: 0.84rem;
+  }
+
+  .tags a:hover {
+    color: var(--color-text);
   }
 
   .article-content {
     padding-top: 18px;
+  }
+
+  .article-footer {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--color-border);
   }
 </style>

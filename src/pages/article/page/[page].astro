@@ -3,48 +3,82 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
 import BlogCard from "../../../components/BlogCard.astro";
 import BlogSearch from "../../../components/BlogSearch.astro";
 import Pagination from "../../../components/Pagination.astro";
-import { getPublishedPosts, getCategories, getTags } from "../../../lib/blog";
+import {
+  getPublishedPosts,
+  getCategories,
+  getTags,
+  type BlogPost,
+} from "../../../lib/blog";
 
 const pageSize = 10;
 
+interface Props {
+  posts: BlogPost[];
+  currentPage: number;
+  totalPages: number;
+}
+
 export async function getStaticPaths() {
+  const pageSize = 10;
   const posts = await getPublishedPosts();
   const totalPages = Math.ceil(posts.length / pageSize);
 
-  return Array.from({ length: Math.max(0, totalPages - 1) }, (_, index) => {
-    const page = index + 2;
+  return Array.from(
+    { length: Math.max(0, totalPages - 1) },
+    (_, index) => {
+      const currentPage = index + 2;
 
-    return {
-      params: { page: String(page) },
-      props: {
-        posts: posts.slice((page - 1) * pageSize, page * pageSize),
-        currentPage: page,
-        totalPages
-      }
-    };
-  });
+      return {
+        params: { page: String(currentPage) },
+        props: {
+          posts: posts.slice(
+            (currentPage - 1) * pageSize,
+            currentPage * pageSize,
+          ),
+          currentPage,
+          totalPages,
+        },
+      };
+    },
+  );
 }
 
 const { posts, currentPage, totalPages } = Astro.props;
 const [categories, tags] = await Promise.all([
   getCategories(),
-  getTags()
+  getTags(),
 ]);
 ---
 
-<BaseLayout title={`Articles · Page ${currentPage}`} description={`Published articles, page ${currentPage}.`}>
+<BaseLayout
+  title={`Articles · Page ${currentPage}`}
+  description={`Browse articles on page ${currentPage}.`}
+>
   <section class="container listing">
     <header class="listing-header">
       <p class="eyebrow">THE ARCHIVE</p>
       <h1>Articles</h1>
-      <p>Page {currentPage} of {totalPages}</p>
+      <p>Page {currentPage} of {totalPages}. Explore more articles, ideas, and technical notes.</p>
     </header>
+
     <BlogSearch categories={categories} tags={tags} />
+
     <div class="post-list" data-blog-results>
-      {posts.map((post) => <BlogCard post={post} />)}
-      <p class="no-results" data-no-results hidden>No articles match your filters.</p>
+      {posts.length > 0 ? (
+        posts.map((post) => <BlogCard post={post} />)
+      ) : (
+        <p class="empty">No published articles on this page.</p>
+      )}
+
+      <p class="no-results" data-no-results hidden>
+        No articles match your filters.
+      </p>
     </div>
-    <Pagination currentPage={currentPage} totalPages={totalPages} />
+
+    <Pagination
+      currentPage={currentPage}
+      totalPages={totalPages}
+    />
   </section>
 </BaseLayout>
 
@@ -72,12 +106,13 @@ const [categories, tags] = await Promise.all([
     letter-spacing: -0.055em;
   }
 
-  .listing-header > p:last-child {
+  .listing-header > p:last-child,
+  .empty,
+  .no-results {
     color: var(--color-muted);
   }
 
   .no-results {
     padding: 24px 0;
-    color: var(--color-muted);
   }
 </style>

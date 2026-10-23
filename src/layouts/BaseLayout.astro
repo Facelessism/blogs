@@ -10,7 +10,7 @@ interface Props {
 const {
   title = "Blog",
   description = "Articles, ideas, and technical notes.",
-  canonicalURL
+  canonicalURL,
 } = Astro.props;
 
 const pageTitle = title === "Blog" ? title : `${title} | Blog`;
@@ -24,32 +24,65 @@ const pageTitle = title === "Blog" ? title : `${title} | Blog`;
     <meta name="generator" content={Astro.generator} />
     <meta name="description" content={description} />
     <meta name="theme-color" content="#0b0d10" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={description} />
     <title>{pageTitle}</title>
     {canonicalURL && <link rel="canonical" href={canonicalURL} />}
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
   <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+
     <header class="site-header">
       <div class="container header-inner">
-        <a class="site-logo" href="/" aria-label="Blog home">Blog</a>
+        <a class="site-logo" href="/" aria-label="Blog home">BLOG</span>
+        </a>
+
         <nav aria-label="Main navigation">
           <a href="/article/">Articles</a>
         </nav>
       </div>
     </header>
-    <main>
+
+    <main id="main-content">
       <slot />
     </main>
+
     <footer class="site-footer">
       <div class="container footer-inner">
-        <span>© {new Date().getFullYear()} Blog</span>
-        <a href="/article/">Browse articles</a>
+        <span>© {new Date().getFullYear()} Facelessism</span>
+
+        <nav class="footer-nav" aria-label="Footer navigation">
+          <a href="/article/">Browse articles</a>
+          <a href="/admin/">Admin</a>
+        </nav>
       </div>
     </footer>
   </body>
 </html>
 
 <style>
+  .skip-link {
+    position: absolute;
+    z-index: 10;
+    top: 8px;
+    left: 8px;
+    padding: 10px 14px;
+    transform: translateY(-150%);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+
+  .skip-link:focus {
+    transform: translateY(0);
+  }
+
   .site-header {
     border-bottom: 1px solid var(--color-border);
     background: var(--color-background);
@@ -99,6 +132,10 @@ const pageTitle = title === "Blog" ? title : `${title} | Blog`;
     font-size: 0.85rem;
   }
 
+  .footer-nav {
+    gap: 20px;
+  }
+
   @media (max-width: 420px) {
     .header-inner,
     .footer-inner {
@@ -107,6 +144,10 @@ const pageTitle = title === "Blog" ? title : `${title} | Blog`;
 
     nav {
       gap: 14px;
+    }
+
+    .footer-nav {
+      gap: 12px;
     }
   }
 </style>

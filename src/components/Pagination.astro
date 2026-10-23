@@ -15,23 +15,40 @@ const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
 ---
 
 {totalPages > 1 && (
-  <nav class="pagination" aria-label="Article pagination">
+  <nav
+    class="pagination"
+    aria-label="Article pagination"
+    data-blog-pagination
+  >
     {currentPage > 1 && (
-      <a class="page-control" href={getPageUrl(currentPage - 1)} rel="prev">
+      <a
+        class="page-control"
+        href={getPageUrl(currentPage - 1)}
+        rel="prev"
+        aria-label="Go to previous page"
+      >
         Previous
       </a>
     )}
+
     {pages.map((page) => (
       <a
         class={page === currentPage ? "page-number active" : "page-number"}
         href={getPageUrl(page)}
         aria-current={page === currentPage ? "page" : undefined}
+        aria-label={`Page ${page}`}
       >
         {page}
       </a>
     ))}
+
     {currentPage < totalPages && (
-      <a class="page-control" href={getPageUrl(currentPage + 1)} rel="next">
+      <a
+        class="page-control"
+        href={getPageUrl(currentPage + 1)}
+        rel="next"
+        aria-label="Go to next page"
+      >
         Next
       </a>
     )}
@@ -48,6 +65,10 @@ const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
     margin-top: 36px;
   }
 
+  .pagination[hidden] {
+    display: none;
+  }
+
   .pagination a {
     display: inline-flex;
     align-items: center;
@@ -59,6 +80,11 @@ const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
     border-radius: 6px;
     color: var(--color-muted);
     font-size: 0.85rem;
+    text-decoration: none;
+    transition:
+      color 150ms ease,
+      border-color 150ms ease,
+      background-color 150ms ease;
   }
 
   .pagination a:hover {
@@ -70,10 +96,17 @@ const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
     border-color: var(--color-border);
     background: var(--color-surface);
     color: var(--color-text);
+    font-weight: 600;
   }
 
   .pagination a:focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pagination a {
+      transition: none;
+    }
   }
 </style>

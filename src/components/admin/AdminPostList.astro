@@ -1,0 +1,157 @@
+<section class="admin-toolbar" aria-label="Filter articles">
+  <input
+    class="admin-field"
+    type="search"
+    placeholder="Search articles by title or slug..."
+    aria-label="Search articles"
+    data-post-search
+  />
+
+  <select class="admin-select" aria-label="Filter article status" data-post-filter>
+    <option value="all">All articles</option>
+    <option value="published">Published</option>
+    <option value="draft">Drafts</option>
+  </select>
+</section>
+
+<section class="admin-post-list" aria-label="Articles" data-post-list>
+  <div class="admin-empty">
+    <p>Loading articles...</p>
+  </div>
+</section>
+
+<script>
+  import { deletePost, listPosts } from "../../lib/admin/store";
+
+  const root = document.querySelector<HTMLElement>("[data-post-list]");
+  const search = document.querySelector<HTMLInputElement>("[data-post-search]");
+  const filter = document.querySelector<HTMLSelectElement>("[data-post-filter]");
+
+  if (root && search && filter) {
+    function render() {
+      const query = search.value.trim().toLowerCase();
+      const status = filter.value;
+
+      const posts = listPosts().filter((post) => {
+        const matchesQuery =
+          post.title.toLowerCase().includes(query) ||
+          post.slug.toLowerCase().includes(query) ||
+          post.description.toLowerCase().includes(query);
+
+        const matchesStatus =
+          status === "all" ||
+          (status === "draft" && post.draft) ||
+          (status === "published" && !post.draft);
+
+        return matchesQuery && matchesStatus;
+      });
+
+      root.replaceChildren();
+
+      if (posts.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "admin-empty";
+
+        const heading = document.createElement("h2");
+        heading.textContent = query || status !== "all"
+          ? "No matching articles"
+          : "Your article list is empty";
+
+        const message = document.createElement("p");
+        message.textContent = query || status !== "all"
+          ? "Try changing the search or status filter."
+          : "Create your first article to start building your archive.";
+
+        empty.append(heading, message);
+
+        if (!query && status === "all") {
+          const link = document.createElement("a");
+          link.className = "admin-button admin-button-primary";
+          link.href = "/admin/new/";
+          link.textContent = "Create article";
+          empty.append(link);
+        }
+
+        root.append(empty);
+        return;
+      }
+
+      for (const post of posts) {
+        const row = document.createElement("article");
+        row.className = "admin-post-row";
+
+        const main = document.createElement("div");
+        main.className = "admin-post-main";
+
+        const title = document.createElement("a");
+        title.className = "admin-post-title";
+        title.href = `/admin/edit/?slug=${encodeURIComponent(post.slug)}`;
+        title.textContent = post.title;
+
+        const description = document.createElement("p");
+        description.className = "admin-post-description";
+        description.textContent = post.description;
+
+        const meta = document.createElement("div");
+        meta.className = "admin-post-meta";
+
+        const badge = document.createElement("span");
+        badge.className = `admin-status ${
+          post.draft ? "admin-status-draft" : "admin-status-published"
+        }`;
+        badge.textContent = post.draft ? "Draft" : "Published";
+
+        const date = document.createElement("span");
+        date.textContent = `Publication date: ${post.pubDate}`;
+
+        const slug = document.createElement("span");
+        slug.textContent = `/${post.slug}/`;
+
+        meta.append(badge, date, slug);
+        main.append(title, description, meta);
+
+        const actions = document.createElement("div");
+        actions.className = "admin-post-actions";
+
+        const edit = document.createElement("a");
+        edit.className = "admin-button";
+        edit.href = `/admin/edit/?slug=${encodeURIComponent(post.slug)}`;
+        edit.textContent = "Edit";
+
+        const remove = document.createElement("button");
+        remove.className = "admin-button admin-button-danger";
+        remove.type = "button";
+        remove.textContent = "Delete";
+
+        remove.addEventListener("click", () => {
+          const confirmed = window.confirm(
+            `Delete "${post.title}" from this browser's admin prototype? This cannot be undone here.`,
+          );
+
+          if (!confirmed) return;
+
+          try {
+            deletePost(post.slug);
+            render();
+          } catch (error) {
+            window.alert(
+              error instanceof Error
+                ? error.message
+                : "Could not delete the article.",
+            );
+          }
+        });
+
+        actions.append(edit, remove);
+        row.append(main, actions);
+        root.append(row);
+      }
+    }
+
+    search.addEventListener("input", render);
+    filter.addEventListener("change", render);
+    window.addEventListener("storage", render);
+
+    render();
+  }
+</script>

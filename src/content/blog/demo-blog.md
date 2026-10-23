@@ -7,7 +7,7 @@ categories:
 tags:
   - demo
   - template
-draft: false
+draft: true
 ---
 
 # Demo Blog

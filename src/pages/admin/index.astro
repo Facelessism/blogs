@@ -1,0 +1,36 @@
+---
+import AdminLayout from "../../layouts/AdminLayout.astro";
+import AdminPostList from "../../components/admin/AdminPostList.astro";
+---
+
+<AdminLayout title="Dashboard">
+  <section>
+    <div class="admin-page-heading">
+      <div>
+        <p class="admin-eyebrow">CONTENT</p>
+        <h1>Articles</h1>
+        <p class="admin-subtitle">
+          Manage drafts and published article records in this browser.
+        </p>
+      </div>
+
+      <a class="admin-button admin-button-primary" href="/admin/new/">
+        + New article
+      </a>
+    </div>
+
+    <div class="admin-message admin-message-success" hidden data-dashboard-message></div>
+
+    <AdminPostList />
+  </section>
+
+  <script>
+    const message = document.querySelector<HTMLElement>("[data-dashboard-message]");
+    const params = new URLSearchParams(window.location.search);
+
+    if (message && params.has("saved")) {
+      message.hidden = false;
+      message.textContent = "Article saved successfully in this browser.";
+    }
+  </script>
+</AdminLayout>
