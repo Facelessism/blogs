@@ -471,7 +471,7 @@ const editing = mode === "edit";
         }
 
         showMessage("Saved to GitHub successfully.", "success");
-        window.location.href = "/admin/?saved=1";
+        window.location.href = `${import.meta.env.BASE_URL.replace(/\/?$/, "/")}admin/?saved=1`;
       } catch (error) {
         showMessage(
           error instanceof Error

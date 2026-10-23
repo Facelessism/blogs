@@ -1,14 +1,16 @@
 <script>
   import { verifyAdminSession } from "../../lib/admin/auth";
 
-  const isLoginPage = window.location.pathname === "/admin/login/";
+  const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
+  const loginPath = `${base}admin/login/`;
+  const isLoginPage = window.location.pathname === loginPath;
 
   if (!isLoginPage) {
     void verifyAdminSession().then(authenticated => {
       if (!authenticated) {
         const next = `${window.location.pathname}${window.location.search}`;
         window.location.replace(
-          `/admin/login/?next=${encodeURIComponent(next)}`
+          `${loginPath}?next=${encodeURIComponent(next)}`
         );
       }
     });
