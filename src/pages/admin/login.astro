@@ -86,9 +86,9 @@ import AdminLayout from "../../layouts/AdminLayout.astro";
       const requestedNext = new URLSearchParams(window.location.search).get("next");
       const next =
         requestedNext?.startsWith("/admin/") &&
-        !requestedNext.startsWith("/admin/login")
+        !requestedNext.startsWith(`${import.meta.env.BASE_URL.replace(/\/?$/, "/")}admin/login/` )
           ? requestedNext
-          : "/admin/";
+          : `${import.meta.env.BASE_URL.replace(/\/?$/, "/")}admin/`;
 
       window.location.replace(next);
     } catch (error) {

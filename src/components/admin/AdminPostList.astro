@@ -144,7 +144,7 @@
         if (!query && status === "all") {
           const link = document.createElement("a");
           link.className = "admin-button admin-button-primary";
-          link.href = "/admin/new/";
+          link.href = `${import.meta.env.BASE_URL.replace(/\/?$/, "/")}admin/new/`;
           link.textContent = "Create article";
           root!.querySelector(".admin-empty")?.append(link);
         }
@@ -161,7 +161,7 @@
 
         const title = document.createElement("a");
         title.className = "admin-post-title";
-        title.href = `/admin/edit/?slug=${encodeURIComponent(post.slug)}`;
+        title.href = `${import.meta.env.BASE_URL.replace(/\/?$/, "/")}admin/edit/?slug=${encodeURIComponent(post.slug)}`;
         title.textContent = post.title;
 
         const description = document.createElement("p");
@@ -191,7 +191,7 @@
 
         const edit = document.createElement("a");
         edit.className = "admin-button";
-        edit.href = `/admin/edit/?slug=${encodeURIComponent(post.slug)}`;
+        edit.href = `${import.meta.env.BASE_URL.replace(/\/?$/, "/")}admin/edit/?slug=${encodeURIComponent(post.slug)}`;
         edit.textContent = "Edit";
 
         const remove = document.createElement("button");
